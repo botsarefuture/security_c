@@ -1,48 +1,35 @@
 #!/bin/bash
 
-# Run common security tools
-sudo apt-get install rkhunter chkrootkit
+# Install common security tools
+echo "Installing security tools..."
+sudo apt-get update
+sudo apt-get install -y rkhunter chkrootkit
 
+# Output file for scan results
+output_file="security_scan_results.txt"
 
-# Check for listening ports
-echo "Checking for listening ports..."
-netstat -tuln
+# Function to log commands and their output to the results file
+log_command() {
+    command="$1"
+    echo "Running: $command" | tee -a "$output_file"
+    eval "$command" 2>&1 | tee -a "$output_file"
+    echo "----------------------------------------" | tee -a "$output_file"
+}
 
-# Check for open connections
-echo "Checking for open connections..."
-netstat -tan
-
-# Check running processes
-echo "Checking running processes..."
-ps aux
-
-# Check for rootkits using rkhunter
-echo "Checking for rootkits using rkhunter..."
-sudo rkhunter --check
-
-# Check for rootkits using chkrootkit
-echo "Checking for rootkits using chkrootkit..."
-sudo chkrootkit
-
-# Check system logs for suspicious activity
-echo "Checking system logs for suspicious activity..."
-grep -i -E 'fail|error|break|deny' /var/log/auth.log
-
-# Check last logins
-echo "Checking last logins..."
-last
-
-# Check for failed login attempts
-echo "Checking for failed login attempts..."
-faillog -a
-
-# Check for file changes
-echo "Checking for file changes..."
-find / -xdev -type f -print0 | xargs -0 stat --format="%z %N" | sort
+# Run common security checks
+log_command "netstat -tuln"
+log_command "netstat -tan"
+log_command "ps aux"
+log_command "sudo rkhunter --check"
+log_command "sudo chkrootkit"
+log_command "grep -i -E 'fail|error|break|deny' /var/log/auth.log"
+log_command "last"
+log_command "faillog -a"
+log_command "find / -xdev -type f -print0 | xargs -0 stat --format=\"%z %N\" | sort"
 
 # Notify if any suspicious activity is found
-if [[ $(grep -i -E 'fail|error|break|deny' /var/log/auth.log) ]]; then
-    echo "Potential security issue detected! Check the logs for more details."
+if grep -i -E 'fail|error|break|deny' "$output_file"; then
+    echo "Potential security issue detected! Check $output_file for more details."
 else
     echo "No suspicious activity found."
 fi
